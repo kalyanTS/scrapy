@@ -3,32 +3,18 @@ import json
 import pandas as pd
 
 class NecklacesSpider(scrapy.Spider):
-    name = 'necklaces'
     root = 'https://www.houseofindya.com'
-    offset = '/zyra/necklace-sets/cat'
-    start_urls = [root+offset]
-
+    name = 'necklaces'
+    start_urls = ['https://www.houseofindya.com/zyra/necklace-sets/cat']
     def parse(self, response):
-        yield scrapy.Request(response.url, callback=self.get_full_page, cb_kwargs=dict(depth=1, urls=[]))
-        
-    def get_full_page(self, response, depth, urls):
-        urls.append(response.url)
-        isEnd = response.css('.catgList .catLoadmorecntr a::text').get()!='Load More'
-        if isEnd:
-            for url in urls:
-                yield scrapy.Request(url, callback=self.parse_full_page, dont_filter = True)
-        else:
-            yield scrapy.Request(self.root+self.offset+'?page='+str(depth), callback=self.get_full_page, cb_kwargs=dict(depth=depth+1, urls=urls))
-
-    def parse_full_page(self, response):
         with open( self.name + '.json', 'w') as f:
             f.write(json.dumps([]))
         necklace_urls = response.css('.catgList #JsonProductList li a::attr(href)').extract()
         for url in necklace_urls:
             url = self.root + url
-            yield scrapy.Request(url, callback=self.parse_page2, cb_kwargs=dict( size=len(necklace_urls)))
-
-    def parse_page2(self, response, size):
+            request = scrapy.Request(url, callback=self.parse_page2, cb_kwargs=dict(url=url, size=len(necklace_urls)))
+            yield request
+    def parse_page2(self, response, url, size):
         with open( self.name + '.json', 'r+') as f:
             necklace = {}
             necklace['title'] = response.css('.prodRight h1::text').get()
